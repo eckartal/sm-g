@@ -1,0 +1,52 @@
+// Prisma schema for X Follower Analytics
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  xUserId     String?  @unique
+  xUsername   String?
+  following   Following?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Following {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  xUserId     String
+  xUsername   String
+  createdAt   DateTime @default(now())
+}
+
+model Follower {
+  id           String   @id @default(cuid())
+  xUserId      String   @unique
+  username     String
+  displayName  String?
+  avatarUrl    String?
+  excluded     Boolean  @default(false)
+  actions      Action[]
+  addedAt      DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Action {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    Follower @relation(fields: [followerId], references: [id], onDelete: Cascade)
+  type        String
+  tweetId     String
+  tweetUrl    String
+  text        String?
+  createdAt   DateTime @default(now())
+}
