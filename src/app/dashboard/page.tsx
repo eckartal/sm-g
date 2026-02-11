@@ -1,19 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
-import { Trophy, ExternalLink, BarChart3, Users, Zap } from "lucide-react"
+import { ExternalLink, Activity, Users, Zap } from "lucide-react"
+import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 
 // Types
@@ -37,7 +29,6 @@ interface LeaderboardEntry {
   likeCount: number
   replyCount: number
   repostCount: number
-  engagementRate: number
   lastActionAt: string | null
 }
 
@@ -53,19 +44,71 @@ interface Follower {
 
 const WEIGHTS = { REPOST: 3, REPLY: 2, LIKE: 1 }
 
-// Skeleton Components
+// Format number with locale
+function formatNum(n: number): string {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return n.toString()
+}
+
+// Ghostty-style progress bar
+function ProgressBar({ value, max, color = "text-white" }: { value: number; max: number; color?: string }) {
+  const width = Math.min(100, (value / max) * 100)
+  return (
+    <div className="inline-flex items-center gap-2">
+      <div className="w-20 h-1 bg-white/10 relative overflow-hidden">
+        <div
+          className={`absolute left-0 top-0 h-full ${color}`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// Stat card component
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  change,
+  changeColor = "text-zinc-500"
+}: {
+  label: string
+  value: string | number
+  icon: any
+  change?: string
+  changeColor?: string
+}) {
+  return (
+    <div className="p-4 -mx-2 hover:bg-white/5 transition-colors rounded-lg">
+      <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-wider mb-1">
+        <Icon className="w-3 h-3" />
+        {label}
+      </div>
+      <div className="mono-tight text-2xl text-white">{value}</div>
+      {change && (
+        <div className={`text-xs mt-1 ${changeColor}`}>{change}</div>
+      )}
+    </div>
+  )
+}
+
+// Skeleton loader
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div className={`bg-white/5 animate-pulse ${className}`} />
+  )
+}
+
 function StatsSkeleton() {
   return (
-    <div className="grid gap-6 md:grid-cols-3">
+    <div className="grid grid-cols-3">
       {[1, 2, 3].map((i) => (
-        <Card key={i}>
-          <CardHeader className="pb-2">
-            <div className="h-4 w-24 bg-muted animate-pulse rounded" />
-          </CardHeader>
-          <CardContent>
-            <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-          </CardContent>
-        </Card>
+        <div key={i} className="p-4 -mx-2">
+          <Skeleton className="h-3 w-16 mb-2" />
+          <Skeleton className="h-6 w-20" />
+        </div>
       ))}
     </div>
   )
@@ -73,10 +116,9 @@ function StatsSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className="space-y-3">
-      <div className="h-10 bg-muted animate-pulse rounded" />
+    <div className="space-y-2">
       {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="h-14 bg-muted animate-pulse rounded" />
+        <div key={i} className="h-10 bg-white/5 rounded" />
       ))}
     </div>
   )
@@ -84,58 +126,11 @@ function TableSkeleton() {
 
 function ActionsSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="h-10 bg-muted animate-pulse rounded w-full" />
+    <div className="space-y-3">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="h-24 bg-muted animate-pulse rounded" />
+        <div key={i} className="h-16 bg-white/5 rounded" />
       ))}
     </div>
-  )
-}
-
-// Badge Component for Action Types
-function ActionBadge({ type }: { type: string }) {
-  const colors = {
-    REPOST: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    REPLY: "bg-blue-100 text-blue-700 border-blue-200",
-    LIKE: "bg-rose-100 text-rose-700 border-rose-200",
-  }
-  const colorClass = colors[type as keyof typeof colors] || "bg-gray-100 text-gray-700"
-
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colorClass}`}>
-      {type}
-    </span>
-  )
-}
-
-// Rank Badge Component
-function RankBadge({ rank }: { rank: number }) {
-  if (rank === 1) {
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-700 text-sm font-bold border border-amber-200">
-        {rank}
-      </span>
-    )
-  }
-  if (rank === 2) {
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-sm font-bold border border-slate-200">
-        {rank}
-      </span>
-    )
-  }
-  if (rank === 3) {
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-50 text-amber-600 text-sm font-bold border border-amber-200">
-        {rank}
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-muted text-muted-foreground text-sm font-medium">
-      {rank}
-    </span>
   )
 }
 
@@ -146,8 +141,12 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("leaderboard")
   const [loading, setLoading] = useState(true)
   const [actionFilter, setActionFilter] = useState<string | null>(null)
+  const [selectedAccount, setSelectedAccount] = useState("")
+  const [sort, setSort] = useState("actions")
 
   useEffect(() => {
+    const saved = localStorage.getItem("selectedAccount")
+    if (saved) setSelectedAccount(saved)
     fetchData()
   }, [])
 
@@ -157,7 +156,7 @@ export default function DashboardPage() {
       const [lbRes, actionsRes, followersRes] = await Promise.all([
         fetch("/api/leaderboard"),
         fetch("/api/actions"),
-        fetch("/api/followers"),
+        fetch(`/api/followers?sort=${sort}`),
       ])
 
       const lbData = await lbRes.json()
@@ -180,347 +179,305 @@ export default function DashboardPage() {
 
   const totalScore = leaderboard.reduce((sum, e) => sum + e.score, 0)
   const activeFollowers = leaderboard.filter((e) => e.score > 0).length
+  const maxScore = Math.max(...leaderboard.map(e => e.score), 1)
+
+  const getActionColor = (type: string) => {
+    switch (type) {
+      case 'LIKE': return 'action-like'
+      case 'REPOST': return 'action-repost'
+      case 'REPLY': return 'action-reply'
+      default: return 'text-zinc-400'
+    }
+  }
+
+  const getActionIcon = (type: string) => {
+    switch (type) {
+      case 'LIKE': return '♥'
+      case 'REPOST': return '↺'
+      case 'REPLY': return '→'
+      default: return '●'
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Trophy className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold">X Follower Analytics</h1>
-                <p className="text-sm text-muted-foreground">Track your engagement</p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-black text-white">
+      {/* Header - Ghostty minimal */}
+      <header className="sticky top-0 z-10 bg-black/95 border-b border-white/10 backdrop-blur">
+        <div className="flex items-center justify-between px-6 py-3 max-w-5xl mx-auto">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-zinc-500 hover:text-white transition-colors text-sm">
+              ←
+            </Link>
+            <span className="mono text-sm text-zinc-400">
+              {selectedAccount ? `@${selectedAccount}` : 'dashboard'}
+            </span>
           </div>
+          <Link href="/" className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+            new →
+          </Link>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8 space-y-8">
-        {/* Stats Cards */}
+      <main className="px-6 py-8 max-w-5xl mx-auto fade-in">
+        {/* Stats - Mono typography */}
         {loading ? (
           <StatsSkeleton />
         ) : (
-          <div className="grid gap-6 md:grid-cols-3">
-            <Card className="border-l-4 border-l-blue-500">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Total Followers
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{followers.length}</div>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-emerald-500">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Zap className="h-4 w-4" />
-                  Total Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{totalScore}</div>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-amber-500">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Active Followers
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{activeFollowers}</div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-3 gap-0 border-b border-white/10">
+            <StatCard
+              label="Followers"
+              value={followers.length.toLocaleString()}
+              icon={Users}
+              change="tracked"
+              changeColor="text-zinc-600"
+            />
+            <StatCard
+              label="Actions"
+              value={totalScore.toLocaleString()}
+              icon={Activity}
+              change="engagements"
+              changeColor="text-zinc-600"
+            />
+            <StatCard
+              label="Score"
+              value={(totalScore / Math.max(followers.length, 1)).toFixed(2)}
+              icon={Zap}
+              change="avg per user"
+              changeColor="text-zinc-600"
+            />
           </div>
         )}
 
-        {/* Main Tabs */}
+        {/* Tabs - Minimal underline */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="actions">Actions</TabsTrigger>
-            <TabsTrigger value="list">Followers</TabsTrigger>
+          <TabsList className="flex gap-8 border-b border-white/10 bg-transparent p-0 h-auto mt-8 mb-6">
+            <TabsTrigger
+              value="leaderboard"
+              className="px-0 pb-2 text-xs mono uppercase tracking-widest data-[state=active]:text-white data-[state=inactive]:text-zinc-600 hover:text-zinc-400 bg-transparent shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-white transition-all"
+            >
+              Leaderboard
+            </TabsTrigger>
+            <TabsTrigger
+              value="actions"
+              className="px-0 pb-2 text-xs mono uppercase tracking-widest data-[state=active]:text-white data-[state=inactive]:text-zinc-600 hover:text-zinc-400 bg-transparent shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-white transition-all"
+            >
+              Activity
+            </TabsTrigger>
+            <TabsTrigger
+              value="list"
+              className="px-0 pb-2 text-xs mono uppercase tracking-widest data-[state=active]:text-white data-[state=inactive]:text-zinc-600 hover:text-zinc-400 bg-transparent shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-white transition-all"
+            >
+              List
+            </TabsTrigger>
           </TabsList>
 
           {/* Leaderboard Tab */}
-          <TabsContent value="leaderboard" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5" />
-                  Engagement Leaderboard
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <TableSkeleton />
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="w-14">Rank</TableHead>
-                        <TableHead>Follower</TableHead>
-                        <TableHead className="text-center">
-                          <span className="flex items-center justify-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                            Repost
-                          </span>
-                        </TableHead>
-                        <TableHead className="text-center">
-                          <span className="flex items-center justify-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-blue-500" />
-                            Reply
-                          </span>
-                        </TableHead>
-                        <TableHead className="text-center">
-                          <span className="flex items-center justify-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-rose-500" />
-                            Like
-                          </span>
-                        </TableHead>
-                        <TableHead className="text-right">Score</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {leaderboard.map((entry, index) => (
-                        <TableRow
-                          key={entry.id}
-                          className="hover:bg-muted/50 transition-colors"
-                        >
-                          <TableCell>
-                            <RankBadge rank={index + 1} />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={entry.avatarUrl || undefined} />
-                                <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                                  {entry.username.slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">
-                                  {entry.displayName || entry.username}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  @{entry.username}
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 text-sm font-medium">
-                              {entry.repostCount}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-700 text-sm font-medium">
-                              {entry.replyCount}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-50 text-rose-700 text-sm font-medium">
-                              {entry.likeCount}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-bold">
-                              {entry.score}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+          <TabsContent value="leaderboard" className="mt-0">
+            <div className="space-y-1">
+              {loading ? (
+                <TableSkeleton />
+              ) : leaderboard.length === 0 ? (
+                <div className="text-center py-12 text-zinc-600 mono text-sm">
+                  No data yet. Sync your account in Settings.
+                </div>
+              ) : (
+                leaderboard.map((entry, index) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center gap-4 py-3 px-4 hover:bg-white/5 transition-colors rounded-lg group"
+                  >
+                    {/* Rank */}
+                    <span className="mono text-zinc-600 text-sm w-6">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+
+                    {/* Avatar */}
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={entry.avatarUrl || undefined} />
+                      <AvatarFallback className="bg-white/10 text-white text-xs">
+                        {entry.username.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Name */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white text-sm truncate">
+                          {entry.displayName || entry.username}
+                        </span>
+                        <span className="text-zinc-600 text-xs mono">
+                          @{entry.username}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Score bar */}
+                    <ProgressBar value={entry.score} max={maxScore} />
+
+                    {/* Score number */}
+                    <span className="mono text-white text-sm w-12 text-right">
+                      {entry.score}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
           </TabsContent>
 
           {/* Actions Tab */}
-          <TabsContent value="actions" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
+          <TabsContent value="actions" className="mt-0">
+            <Card className="bg-transparent border-0 shadow-none">
+              <CardContent className="p-0">
+                {/* Filter */}
+                <div className="flex gap-4 mb-4">
+                  {['all', 'REPOST', 'REPLY', 'LIKE'].map((filter) => (
+                    <button
+                      key={filter}
+                      onClick={() => setActionFilter(filter === 'all' ? null : filter)}
+                      className={`mono text-xs uppercase tracking-wider transition-colors ${
+                        (filter === 'all' && !actionFilter) || filter === actionFilter
+                          ? 'text-white'
+                          : 'text-zinc-600 hover:text-zinc-400'
+                      }`}
+                    >
+                      {filter === 'all' ? 'All' : filter.charAt(0) + filter.slice(1).toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+
                 {loading ? (
                   <ActionsSkeleton />
+                ) : filteredActions.length === 0 ? (
+                  <div className="text-center py-12 text-zinc-600 mono text-sm">
+                    No activity recorded
+                  </div>
                 ) : (
-                  <>
-                    {/* Filter Pills */}
-                    <div className="flex gap-2 mb-6">
-                      {["all", "REPOST", "REPLY", "LIKE"].map((filter) => (
-                        <button
-                          key={filter}
-                          onClick={() =>
-                            setActionFilter(filter === "all" ? null : filter)
-                          }
-                          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                            (filter === "all" && !actionFilter) ||
-                            filter === actionFilter
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
-                        >
-                          {filter === "all"
-                            ? "All"
-                            : filter.charAt(0) + filter.slice(1).toLowerCase()}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="space-y-2">
+                    {filteredActions.map((action) => (
+                      <div
+                        key={action.id}
+                        className="flex items-center gap-4 py-3 px-4 hover:bg-white/5 rounded-lg transition-colors"
+                      >
+                        {/* Action type indicator */}
+                        <span className={`mono text-sm w-6 ${getActionColor(action.type)}`}>
+                          {getActionIcon(action.type)}
+                        </span>
 
-                    <div className="space-y-4">
-                      {filteredActions.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">
-                          No actions found
-                        </div>
-                      ) : (
-                        filteredActions.map((action) => (
-                          <div
-                            key={action.id}
-                            className="flex items-start gap-4 p-4 rounded-xl border bg-card hover:bg-muted/30 transition-colors"
-                          >
-                            <Avatar className="h-11 w-11">
-                              <AvatarImage
-                                src={action.follower.avatarUrl || undefined}
-                              />
-                              <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                                {action.follower.username
-                                  .slice(0, 2)
-                                  .toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium">
-                                  {action.follower.displayName ||
-                                    action.follower.username}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  @{action.follower.username}
-                                </span>
-                                <ActionBadge type={action.type} />
-                              </div>
-                              {action.text && (
-                                <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                                  "{action.text}"
-                                </p>
-                              )}
-                              <div className="flex items-center gap-2 mt-2">
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDistanceToNow(
-                                    new Date(action.createdAt),
-                                    { addSuffix: true }
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                            <a
-                              href={action.tweetUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
+                        {/* Avatar */}
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={action.follower.avatarUrl || undefined} />
+                          <AvatarFallback className="bg-white/10 text-white text-xs">
+                            {action.follower.username.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-white text-sm">
+                              {action.follower.displayName || action.follower.username}
+                            </span>
+                            <span className="mono text-xs text-zinc-600">
+                              @{action.follower.username}
+                            </span>
+                            <span className={`mono text-xs ${getActionColor(action.type)}`}>
+                              {action.type.toLowerCase()}
+                            </span>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </>
+                          {action.text && (
+                            <p className="text-sm text-zinc-500 truncate mt-0.5">
+                              "{action.text}"
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Time */}
+                        <span className="mono text-xs text-zinc-600 whitespace-nowrap">
+                          {formatDistanceToNow(new Date(action.createdAt), { addSuffix: true })}
+                        </span>
+
+                        {/* Link */}
+                        <a
+                          href={action.tweetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded hover:bg-white/10 transition-colors text-zinc-600 hover:text-white"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Followers List Tab */}
-          <TabsContent value="list" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Followers</CardTitle>
-              </CardHeader>
-              <CardContent>
+          <TabsContent value="list" className="mt-0">
+            <Card className="bg-transparent border-0 shadow-none">
+              <CardContent className="p-0">
+                {/* Sort */}
+                <div className="flex justify-end mb-4">
+                  <select
+                    value={sort}
+                    onChange={(e) => {
+                      setSort(e.target.value)
+                      fetch(`/api/followers?sort=${e.target.value}`)
+                        .then(res => res.json())
+                        .then(data => data.followers && setFollowers(data.followers))
+                    }}
+                    className="mono text-xs bg-transparent text-zinc-600 border-none cursor-pointer hover:text-zinc-400 focus:outline-none"
+                  >
+                    <option value="actions">by actions</option>
+                    <option value="recent">by recent</option>
+                    <option value="followers">by followers</option>
+                  </select>
+                </div>
+
                 {loading ? (
                   <TableSkeleton />
+                ) : followers.length === 0 ? (
+                  <div className="text-center py-12 text-zinc-600 mono text-sm">
+                    No followers synced
+                  </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Follower</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {followers.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center py-12 text-muted-foreground">
-                            No followers found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        followers.map((follower) => (
-                          <TableRow
-                            key={follower.id}
-                            className="hover:bg-muted/50 transition-colors"
-                          >
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10">
-                                  <AvatarImage
-                                    src={follower.avatarUrl || undefined}
-                                  />
-                                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                                    {follower.username
-                                      .slice(0, 2)
-                                      .toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <div className="font-medium">
-                                    {follower.displayName || follower.username}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    @{follower.username}
-                                  </div>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-700 text-sm font-medium">
-                                {follower._count.actions}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-                                  follower.excluded
-                                    ? "bg-red-50 text-red-700 border border-red-100"
-                                    : "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                }`}
-                              >
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    follower.excluded ? "bg-red-500" : "bg-emerald-500"
-                                  }`}
-                                />
-                                {follower.excluded ? "Excluded" : "Active"}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                  <div className="space-y-1">
+                    {followers.map((follower) => (
+                      <div
+                        key={follower.id}
+                        className="flex items-center gap-4 py-3 px-4 hover:bg-white/5 rounded-lg transition-colors"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={follower.avatarUrl || undefined} />
+                          <AvatarFallback className="bg-white/10 text-white text-xs">
+                            {follower.username.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white text-sm truncate">
+                              {follower.displayName || follower.username}
+                            </span>
+                            <span className="mono text-xs text-zinc-600">
+                              @{follower.username}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Actions count */}
+                        <span className="mono text-xs text-zinc-500 w-8 text-right">
+                          {follower._count.actions}
+                        </span>
+
+                        {/* Status dot */}
+                        <span className={`w-2 h-2 rounded-full ${
+                          follower.excluded ? 'bg-red-500' : 'bg-zinc-700'
+                        }`} />
+                      </div>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>

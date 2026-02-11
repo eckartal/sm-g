@@ -10,13 +10,15 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  clerkId     String   @unique
-  xUserId     String?  @unique
-  xUsername   String?
-  following   Following?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String     @id @default(cuid())
+  clerkId       String     @unique
+  xAccessToken  String?    // Twitter OAuth access token
+  xRefreshToken String?    // Twitter OAuth refresh token
+  xUserId       String?    @unique // The X user ID being tracked (from OAuth)
+  xUsername     String?    // The X username being tracked (from OAuth)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  following     Following?
 }
 
 model Following {

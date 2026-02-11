@@ -1,13 +1,9 @@
-import { Trophy } from "lucide-react"
+"use client"
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <div className="min-h-screen bg-background">
-      {children}
-    </div>
-  )
+  return <>{children}</>
 }
