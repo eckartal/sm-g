@@ -140,6 +140,7 @@ export default function DashboardPage() {
   const [followers, setFollowers] = useState<Follower[]>([])
   const [activeTab, setActiveTab] = useState("leaderboard")
   const [loading, setLoading] = useState(true)
+  const [seeding, setSeeding] = useState(false)
   const [actionFilter, setActionFilter] = useState<string | null>(null)
   const [selectedAccount, setSelectedAccount] = useState("")
   const [sort, setSort] = useState("actions")
@@ -149,6 +150,25 @@ export default function DashboardPage() {
     if (saved) setSelectedAccount(saved)
     fetchData()
   }, [])
+
+  const loadDemoData = async () => {
+    setSeeding(true)
+    try {
+      const userId = selectedAccount || 'demo'
+      const res = await fetch('/api/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      if (res.ok) {
+        await fetchData()
+      }
+    } catch (error) {
+      console.error('Failed to load demo data:', error)
+    } finally {
+      setSeeding(false)
+    }
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -166,6 +186,12 @@ export default function DashboardPage() {
       if (lbData.leaderboard) setLeaderboard(lbData.leaderboard)
       if (actionsData.actions) setActions(actionsData.actions)
       if (followersData.followers) setFollowers(followersData.followers)
+
+      // Auto-seed demo data if empty
+      const hasData = (lbData.leaderboard?.length > 0 || actionsData.actions?.length > 0 || followersData.followers?.length > 0)
+      if (!hasData && !seeding) {
+        await loadDemoData()
+      }
     } catch (error) {
       console.error("Failed to fetch data:", error)
     } finally {
@@ -274,11 +300,18 @@ export default function DashboardPage() {
           {/* Leaderboard Tab */}
           <TabsContent value="leaderboard" className="mt-0">
             <div className="space-y-1">
-              {loading ? (
+              {loading || seeding ? (
                 <TableSkeleton />
               ) : leaderboard.length === 0 ? (
-                <div className="text-center py-12 text-zinc-600 mono text-sm">
-                  No data yet. Sync your account in Settings.
+                <div className="text-center py-12">
+                  <p className="text-zinc-600 mono text-sm mb-4">No data yet</p>
+                  <button
+                    onClick={loadDemoData}
+                    disabled={seeding}
+                    className="mono text-xs text-white hover:text-zinc-300 transition-colors border border-white/20 px-4 py-2 rounded"
+                  >
+                    {seeding ? 'Loading...' : 'Load demo data'}
+                  </button>
                 </div>
               ) : (
                 leaderboard.map((entry, index) => (
@@ -345,11 +378,18 @@ export default function DashboardPage() {
                   ))}
                 </div>
 
-                {loading ? (
+                {loading || seeding ? (
                   <ActionsSkeleton />
                 ) : filteredActions.length === 0 ? (
-                  <div className="text-center py-12 text-zinc-600 mono text-sm">
-                    No activity recorded
+                  <div className="text-center py-12">
+                    <p className="text-zinc-600 mono text-sm mb-4">No activity recorded</p>
+                    <button
+                      onClick={loadDemoData}
+                      disabled={seeding}
+                      className="mono text-xs text-white hover:text-zinc-300 transition-colors border border-white/20 px-4 py-2 rounded"
+                    >
+                      {seeding ? 'Loading...' : 'Load demo data'}
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -435,11 +475,18 @@ export default function DashboardPage() {
                   </select>
                 </div>
 
-                {loading ? (
+                {loading || seeding ? (
                   <TableSkeleton />
                 ) : followers.length === 0 ? (
-                  <div className="text-center py-12 text-zinc-600 mono text-sm">
-                    No followers synced
+                  <div className="text-center py-12">
+                    <p className="text-zinc-600 mono text-sm mb-4">No followers synced</p>
+                    <button
+                      onClick={loadDemoData}
+                      disabled={seeding}
+                      className="mono text-xs text-white hover:text-zinc-300 transition-colors border border-white/20 px-4 py-2 rounded"
+                    >
+                      {seeding ? 'Loading...' : 'Load demo data'}
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-1">

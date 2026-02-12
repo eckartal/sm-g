@@ -87,7 +87,7 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="border-t border-white/10 mt-32">
           <div className="container mx-auto px-6 py-6 text-center">
-            <p className="text-xs text-zinc-700 mono">built with next.js</p>
+            <p className="text-xs text-zinc-700 mono">terminal-style analytics</p>
           </div>
         </footer>
       </div>

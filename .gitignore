@@ -41,3 +41,6 @@ prisma/migrations/
 # Misc
 *.log
 *.tsbuildinfo
+
+# clerk configuration (can include secrets)
+/.clerk/

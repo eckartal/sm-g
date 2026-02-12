@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         username: follower.username,
         displayName: follower.displayName,
         avatarUrl: follower.avatarUrl,
+        excluded: follower.excluded,
       } : null,
     }
   }).filter(a => a.follower && !a.follower.excluded)
