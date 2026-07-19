@@ -45,6 +45,10 @@ DATABASE_URL="postgresql://user:password@localhost:5432/sm_g"
 
 # X API (optional - for real data)
 X_API_KEY=your_x_api_key
+
+# Xquik tweet search (optional - used for recent tweet sync when present)
+XQUIK_API_KEY=your_xquik_api_key
+XQUIK_API_BASE_URL=https://xquik.com
 ```
 
 ## Project Structure
@@ -68,6 +72,11 @@ The app runs in demo mode with in-memory data. To connect real X API:
 1. Get X API credentials from developer.twitter.com
 2. Update the sync routes to call X API
 3. Set up PostgreSQL and run `npx prisma db push`
+
+If `XQUIK_API_KEY` is configured, `/api/sync` uses Xquik tweet search for the
+authenticated user's recent tweets before falling back to the direct X API
+tweet timeline. Follower, like, and repost lookups keep using the existing X
+OAuth flow.
 
 ## License
 

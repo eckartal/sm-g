@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { Suspense, useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,7 +12,7 @@ function generateDemoUserId() {
   return 'demo_user_' + Math.random().toString(36).substring(2, 15)
 }
 
-export default function SettingsPage() {
+function SettingsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [userId, setUserId] = useState<string | null>(null)
@@ -22,6 +22,18 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
+
+  const checkConnection = useCallback(() => {
+    fetch("/api/user")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.xAccessToken) {
+          setConnected(true)
+          setXUsername(data.xUsername || "")
+        }
+      })
+      .catch(console.error)
+  }, [])
 
   // Check URL params for connection status
   useEffect(() => {
@@ -39,7 +51,7 @@ export default function SettingsPage() {
       // Clear the error param from URL
       router.replace('/dashboard/settings', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [checkConnection, searchParams, router])
 
   // Generate or get demo user ID
   useEffect(() => {
@@ -52,19 +64,7 @@ export default function SettingsPage() {
 
     // Check connection status
     checkConnection()
-  }, [])
-
-  const checkConnection = useCallback(() => {
-    fetch("/api/user")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.xAccessToken) {
-          setConnected(true)
-          setXUsername(data.xUsername || "")
-        }
-      })
-      .catch(console.error)
-  }, [])
+  }, [checkConnection])
 
   const handleConnect = () => {
     setConnecting(true)
@@ -243,6 +243,14 @@ export default function SettingsPage() {
         </Card>
       </main>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
   )
 }
 
