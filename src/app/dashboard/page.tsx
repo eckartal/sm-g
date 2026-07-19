@@ -426,7 +426,7 @@ export default function DashboardPage() {
                           </div>
                           {action.text && (
                             <p className="text-sm text-zinc-500 truncate mt-0.5">
-                              "{action.text}"
+                              &quot;{action.text}&quot;
                             </p>
                           )}
                         </div>

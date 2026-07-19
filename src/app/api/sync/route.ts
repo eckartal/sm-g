@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { store } from '@/lib/store'
 import { createTwitterClient } from '@/lib/twitter'
+import { fetchXquikUserTweets } from '@/lib/xquik'
 
 // Get userId from header or query
 function getUserId(request: NextRequest): string {
@@ -61,7 +62,13 @@ export async function POST(request: NextRequest) {
     } while (nextToken)
 
     // Sync engagement actions from recent tweets
-    const tweets = await twitter.getUserTweets(xUserId, 100)
+    let tweets = null
+    try {
+      tweets = await fetchXquikUserTweets(xUsername, xUserId, 100)
+    } catch {
+      tweets = null
+    }
+    tweets ??= await twitter.getUserTweets(xUserId, 100)
     let actionsCount = 0
 
     for (const tweet of tweets.data) {
